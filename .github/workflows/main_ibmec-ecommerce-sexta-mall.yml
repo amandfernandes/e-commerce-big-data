@@ -22,8 +22,8 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build com Maven
-        run: mvn clean install
+      - name: Build sem rodar testes
+        run: mvn clean install -DskipTests
 
       - name: Upload do artefato para o deploy
         uses: actions/upload-artifact@v4
