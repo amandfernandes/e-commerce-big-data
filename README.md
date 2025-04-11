@@ -1,5 +1,5 @@
 ### Integrantes:
 
-Amanda Fernandes,
-Gabriel Monteiro,
-João Gabriel Rodrigez
+- **Amanda Fernandes**,
+- **Gabriel Monteiro**,
+- **João Gabriel Rodrigez**
