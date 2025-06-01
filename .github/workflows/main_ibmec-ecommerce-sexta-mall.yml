@@ -24,6 +24,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Build sem rodar testes
+        working-directory: ./api
         run: mvn clean install -DskipTests
 
       - name: Upload do artefato para o deploy
