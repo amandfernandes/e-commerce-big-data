@@ -16,21 +16,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configurar Java 21
+      - name: Set up Java version
         uses: actions/setup-java@v4
         with:
           java-version: '21'
-          distribution: 'temurin'
+          distribution: 'microsoft'
 
-      - name: Build sem rodar testes
-        working-directory: ./api
-        run: mvn clean install -DskipTests
+      - name: Make mvnw executable
+        run: chmod +x ./api/mvnw
 
-      - name: Upload do artefato para o deploy
+      - name: Build with Maven
+        run: ./api/mvnw -f api/pom.xml clean install
+
+      - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: java-app
-          path: '${{ github.workspace }}.api/target/*.jar'
+          path: api/target/*.jar
 
   deploy:
     runs-on: ubuntu-latest
