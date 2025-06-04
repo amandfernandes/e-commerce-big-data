@@ -1,14 +1,10 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy JAR app to Azure Web App - bigmall
 
 on:
   push:
     branches:
-      
-main
-workflow_dispatch:,
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -17,27 +13,23 @@ jobs:
       contents: read
 
     steps:
-      
-name: Checkout code
-      uses: actions/checkout@v4,
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      
-name: Set up Java version
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'microsoft',
+      - name: Set up Java version
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
 
-      
-name: Build with Maven
-      run: ./api/mvnw -f api/pom.xml clean install,
+      - name: Build with Maven
+        run: ./api/mvnw -f api/pom.xml clean install
 
-      
-name: Upload artifact for deployment job
-      uses: actions/upload-artifact@v4
-      with:
-        name: java-app
-        path: api/target/*.jar,
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-app
+          path: api/target/*.jar
 
   deploy:
     runs-on: ubuntu-latest
@@ -50,25 +42,22 @@ name: Upload artifact for deployment job
       contents: read
 
     steps:
-      
-name: Download artifact from build job
-      uses: actions/download-artifact@v4
-      with:
-        name: java-app,
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: java-app
 
-      
-name: Login to Azure
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C39D5F3327354B03B2853C853477745B }}
-        tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_60E1E189987E4BACAED1F859B4C6199E }}
-        subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_82CAD8A0168E45B3A5ECF321EECFCA71 }},
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C39D5F3327354B03B2853C853477745B }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_60E1E189987E4BACAED1F859B4C6199E }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_82CAD8A0168E45B3A5ECF321EECFCA71 }}
 
-      
-name: Deploy to Azure Web App
-      id: deploy-to-webapp
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: 'bigmall'
-        slot-name: 'Production'
-        package: '*.jar'
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'bigmall'
+          slot-name: 'Production'
+          package: '*.jar'
