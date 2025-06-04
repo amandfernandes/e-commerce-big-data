@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/*
   workflow_dispatch:
 
 jobs:
@@ -23,13 +24,14 @@ jobs:
           distribution: 'temurin'
 
       - name: Build sem rodar testes
+        working-directory: ./api
         run: mvn clean install -DskipTests
 
       - name: Upload do artefato para o deploy
         uses: actions/upload-artifact@v4
         with:
           name: java-app
-          path: '${{ github.workspace }}/target/*.jar'
+          path: '${{ github.workspace }}/api/target/*.jar'
 
   deploy:
     runs-on: ubuntu-latest

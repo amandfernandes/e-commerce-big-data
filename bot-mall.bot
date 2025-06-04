@@ -1,0 +1,19 @@
+{
+    "name": "bot-mall",
+    "description": "",
+    "services": [
+        {
+            "type": "endpoint",
+            "name": "http://localhost:3978",
+            "id": "6a885ab0-3cba-11f0-8527-c9a9c21a5b33",
+            "appId": "",
+            "appPassword": "",
+            "tenantId": "",
+            "endpoint": "http://localhost:3978/api/messages"
+        }
+    ],
+    "padlock": "",
+    "version": "2.0",
+    "path": "C:\\Users\\ing_a\\Miniprojeto-de-E-commerce-\\bot-mall.bot",
+    "overrides": null
+}
