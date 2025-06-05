@@ -21,7 +21,6 @@ class ProdutoDialog (ComponentDialog):
 
         self.add_dialog(TextPrompt("comprarProduto"))
 
-         #Area de atendimento de consultar pedidos
         self.add_dialog(CompraDialog(user_state))
 
         self.add_dialog(
