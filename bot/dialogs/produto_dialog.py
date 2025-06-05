@@ -71,8 +71,6 @@ class ProdutoDialog (ComponentDialog):
             product_id = result_action["productId"]
 
             return await step_context.begin_dialog("ComprarProdutoDialog", {"productId": product_id})
-
-            #Direcionar para outro dialog de compras
         
         return await step_context.end_dialog()
 
@@ -82,7 +80,6 @@ class ProdutoDialog (ComponentDialog):
         response = produto_api.search_product(productName)
 
         for produto in response:
-            #Montando o card
             card = CardFactory.hero_card(
                 HeroCard(
                     title=produto["productName"],
@@ -92,7 +89,7 @@ class ProdutoDialog (ComponentDialog):
                     buttons=[
                         CardAction(
                             type=ActionTypes.post_back,
-                            title=f"Comprar {produto["productName"]}",
+                            title=f"Comprar {produto['productName']}",
                             value={"acao": "comprar", "productId": produto["id"]},
 
                         )

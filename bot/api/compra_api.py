@@ -26,7 +26,6 @@ class ComprasAPI:
             return None
 
     def add_to_cart(self, user_id, product_id, quantity):
-        """Adiciona produto ao carrinho"""
         try:
             cart_data = {
                 "product_id": product_id,

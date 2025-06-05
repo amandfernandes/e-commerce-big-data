@@ -30,7 +30,7 @@ class MainDialog(ComponentDialog):
 
         self.add_dialog(PedidoDialog())
         self.add_dialog(ProdutoDialog(user_state))
-        self.add_dialog(ExtratoDialog())
+        self.add_dialog(ExtratoDialog(user_state))
         self.add_dialog(CompraDialog(user_state))
 
         self.add_dialog(
