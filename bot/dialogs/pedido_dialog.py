@@ -13,6 +13,7 @@ from botbuilder.dialogs import (
 from botbuilder.dialogs.choices import Choice
 from botbuilder.core import MessageFactory
 
+from botbuilder.dialogs.prompts import PromptOptions
 
 class PedidoDialog(ComponentDialog):
 
@@ -36,9 +37,6 @@ class PedidoDialog(ComponentDialog):
         self.initial_dialog_id = WaterfallDialog.__name__
 
     async def choice_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        """
-        Permite escolher entre listar pedidos ou buscar por ID específico.
-        """
         prompt_message = "📦 **Consulta de Pedidos**\n\nO que você gostaria de fazer?"
 
         choices = [
@@ -49,10 +47,10 @@ class PedidoDialog(ComponentDialog):
 
         return await step_context.prompt(
             ChoicePrompt.__name__,
-            {
-                "prompt": MessageFactory.text(prompt_message),
-                "choices": choices,
-            },
+            PromptOptions(
+                prompt=MessageFactory.text(prompt_message),
+                choices=choices,
+            ),
         )
 
     async def action_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
@@ -66,7 +64,7 @@ class PedidoDialog(ComponentDialog):
         elif choice == "buscar":
             return await step_context.prompt(
                 TextPrompt.__name__,
-                MessageFactory.text("🔍 Digite o ID do pedido que você quer consultar:")
+                {"prompt": MessageFactory.text("🔍 Digite o ID do pedido que você quer consultar:")}
             )
         elif choice == "voltar":
             return await step_context.end_dialog()
@@ -93,14 +91,14 @@ class PedidoDialog(ComponentDialog):
         else:
             message = "📦 **Seus Últimos Pedidos:**\n\n"
             
-            for order in orders[-5:]:  # Mostra os 5 mais recentes
+            for order in orders[-5:]:
                 status_emoji = self._get_status_emoji(order["status"])
                 message += (
                     f"🏷️ **Pedido #{order['id']}**\n"
-                    f"📅 Data: {order['date']}\n"
+                    f"📅 Data: {order['data']}\n"  # era order['date'], ajuste se o campo for 'data'
                     f"{status_emoji} Status: {order['status']}\n"
                     f"💰 Total: R$ {order['total']:.2f}\n"
-                    f"📦 Itens: {len(order['items'])} produto(s)\n\n"
+                    f"📦 Itens: {len(order['itens'])} produto(s)\n\n"  # era order['items']
                 )
 
         await step_context.context.send_activity(MessageFactory.text(message))

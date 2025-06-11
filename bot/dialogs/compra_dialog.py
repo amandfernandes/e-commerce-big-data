@@ -2,6 +2,8 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
+from botbuilder.dialogs.prompts import PromptOptions
+
 from botbuilder.dialogs import (
     ComponentDialog,
     WaterfallDialog,
@@ -50,7 +52,6 @@ class CompraDialog(ComponentDialog):
 
     async def menu_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         cart = await self.cart_accessor.get(step_context.context, lambda: [])
-        
         cart_count = len(cart)
         cart_info = f" ({cart_count} item{'s' if cart_count != 1 else ''})" if cart_count > 0 else ""
 
@@ -66,10 +67,10 @@ class CompraDialog(ComponentDialog):
 
         return await step_context.prompt(
             ChoicePrompt.__name__,
-            {
-                "prompt": MessageFactory.text(prompt_message),
-                "choices": choices,
-            },
+            PromptOptions(
+                prompt=MessageFactory.text(prompt_message),
+                choices=choices,
+            ),
         )
 
     async def action_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
@@ -79,7 +80,7 @@ class CompraDialog(ComponentDialog):
         if choice == "adicionar":
             return await step_context.prompt(
                 TextPrompt.__name__,
-                MessageFactory.text("🔍 Digite o nome ou ID do produto que deseja adicionar:")
+                {"prompt": MessageFactory.text("🔍 Digite o nome ou ID do produto que deseja adicionar:")}
             )
         elif choice == "carrinho":
             await self._show_cart(step_context)
@@ -113,10 +114,10 @@ class CompraDialog(ComponentDialog):
 
             return await step_context.prompt(
                 ChoicePrompt.__name__,
-                {
-                    "prompt": MessageFactory.text("🤔 **Confirmar o pedido?**"),
-                    "choices": choices,
-                },
+                PromptOptions(
+                    prompt=MessageFactory.text("🤔 **Confirmar o pedido?**"),
+                    choices=choices,
+                ),
             )
         else:
             return await step_context.next(None)
@@ -153,6 +154,16 @@ class CompraDialog(ComponentDialog):
 
         product = products[0]
         step_context.values["selected_product"] = product
+
+        # Adapte aqui: ao adicionar ao carrinho, use os campos corretos
+        cart = await self.cart_accessor.get(step_context.context, lambda: [])
+        cart.append({
+            "id": product["id"],
+            "name": product["nome"],      # converte 'nome' da API para 'name' do bot
+            "price": product["preco"],    # converte 'preco' da API para 'price' do bot
+            "quantity": 1
+        })
+        await self.cart_accessor.set(step_context.context, cart)
 
         return await step_context.prompt(
             NumberPrompt.__name__,
@@ -210,10 +221,10 @@ class CompraDialog(ComponentDialog):
 
         return await step_context.prompt(
             ChoicePrompt.__name__,
-            {
-                "prompt": MessageFactory.text("💳 **Escolha a forma de pagamento:**"),
-                "choices": choices,
-            },
+            PromptOptions(
+                prompt=MessageFactory.text("💳 **Escolha a forma de pagamento:**"),
+                choices=choices,
+            ),
         )
 
     async def _show_order_summary(self, step_context: WaterfallStepContext) -> DialogTurnResult:

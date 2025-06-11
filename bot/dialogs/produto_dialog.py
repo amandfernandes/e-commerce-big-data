@@ -70,7 +70,7 @@ class ProdutoDialog (ComponentDialog):
 
             product_id = result_action["productId"]
 
-            return await step_context.begin_dialog("ComprarProdutoDialog", {"productId": product_id})
+            return await step_context.begin_dialog("CompraDialog", {"productId": product_id})
         
         return await step_context.end_dialog()
 
@@ -82,16 +82,15 @@ class ProdutoDialog (ComponentDialog):
         for produto in response:
             card = CardFactory.hero_card(
                 HeroCard(
-                    title=produto["productName"],
-                    text=f"Preço: R$ {produto['price']}",
-                    subtitle=produto["productDescription"],
-                    images=[CardImage(url=imagem) for imagem in produto["imageUrl"]],
+                    title=produto["nome"],  # era productName
+                    text=f"Preço: R$ {produto['preco']}",  # era price
+                    subtitle=produto["descricao"],  # era productDescription
+                    images=[CardImage(url=imagem) for imagem in produto["imagens"]],  # era imageUrl
                     buttons=[
                         CardAction(
                             type=ActionTypes.post_back,
-                            title=f"Comprar {produto['productName']}",
-                            value={"acao": "comprar", "productId": produto["id"]},
-
+                            title=f"Comprar {produto['nome']}",
+                            value={"acao": "comprar", "productId": produto["id"]},                     
                         )
                     ],
                 )

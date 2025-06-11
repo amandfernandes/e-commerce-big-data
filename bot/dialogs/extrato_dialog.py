@@ -63,7 +63,7 @@ class ExtratoDialog(ComponentDialog):
         elif choice == "valor":
             return await step_context.prompt(
                 TextPrompt.__name__,
-                MessageFactory.text("💰 Digite o valor mínimo das compras (ex: 50.00):")
+                {"prompt": MessageFactory.text("💰 Digite o valor mínimo das compras (ex: 50.00):")}
             )
         else:
             await self._show_statement(step_context, choice)
@@ -137,11 +137,11 @@ class ExtratoDialog(ComponentDialog):
 
         for purchase in purchases[-10:]:
             message += (
-                f"🏷️ **Pedido #{purchase['order_id']}**\n"
-                f"📅 Data: {purchase['date']}\n"
+                f"🏷️ **Pedido #{purchase['id']}**\n"  # era order_id
+                f"📅 Data: {purchase['data']}\n"      # era date
                 f"💰 Valor: R$ {purchase['total']:.2f}\n"
-                f"💳 Forma de pagamento: {purchase['payment_method']}\n"
-                f"📦 Produtos: {', '.join([item['name'] for item in purchase['items']])}\n\n"
+                f"💳 Forma de pagamento: {purchase['forma_pagamento']}\n"  # era payment_method
+                f"📦 Produtos: {', '.join([item['nome'] for item in purchase['itens']])}\n\n"  # era name/items
             )
 
         if len(purchases) > 10:
