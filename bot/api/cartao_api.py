@@ -16,15 +16,15 @@ class CartaoAPI:
             print(f"Erro ao buscar cartões: {e}")
             return []
 
-    def get_card_statement(self, card_id, start_date=None, end_date=None):
+    def get_card_statement(self, user_id, card_id, start_date=None, end_date=None):
         try:
             params = {}
             if start_date:
                 params['start_date'] = start_date
             if end_date:
                 params['end_date'] = end_date
-            
-            response = requests.get(f"{self.base_url}/cartoes/{card_id}/extrato", params=params)
+
+            response = requests.get(f"{self.base_url}/cartoes/{user_id}/{card_id}/extrato", params=params)
             if response.status_code == 200:
                 return response.json()
             return []

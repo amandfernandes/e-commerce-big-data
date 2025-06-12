@@ -3,148 +3,123 @@ from botbuilder.dialogs import (
     WaterfallDialog,
     WaterfallStepContext,
     DialogTurnResult,
-    TextPrompt,
     ChoicePrompt,
+    PromptOptions
 )
 from botbuilder.dialogs.choices import Choice
-from botbuilder.dialogs.prompts import PromptOptions
-from botbuilder.core import MessageFactory
-from datetime import datetime, timedelta
-from botbuilder.core import UserState
+from botbuilder.core import MessageFactory, UserState
+from botbuilder.schema import ActionTypes, CardAction, SuggestedActions
 from api.cartao_api import CartaoAPI
 
 class ExtratoDialog(ComponentDialog):
     def __init__(self, user_state: UserState):
         super(ExtratoDialog, self).__init__(ExtratoDialog.__name__)
         
-        self.user_state = user_state
-        self.user_id_accessor = self.user_state.create_property("UserId")
         self.cartao_api = CartaoAPI()
-
-        self.add_dialog(TextPrompt(TextPrompt.__name__))
+        self.user_state = user_state
+        
         self.add_dialog(ChoicePrompt(ChoicePrompt.__name__))
-
         self.add_dialog(
             WaterfallDialog(
-                WaterfallDialog.__name__,
+                "ExtratoWaterfall",
                 [
-                    self.filter_step,
-                    self.process_step,
-                ],
+                    self.select_card_step,
+                    self.show_extrato_step,
+                    self.final_step
+                ]
             )
         )
+        
+        self.initial_dialog_id = "ExtratoWaterfall"
 
-        self.initial_dialog_id = WaterfallDialog.__name__
+    async def select_card_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        # Simula um user_id fixo para teste
+        user_id = 1
+        
+        # Busca cartões do usuário
+        cards = self.cartao_api.get_user_cards(user_id)
+        
+        if not cards:
+            await step_context.context.send_activity("Você não possui cartões cadastrados.")
+            return await step_context.end_dialog()
 
-    async def filter_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        prompt_message = "📊 **Extrato de Compras**\n\nQue período você gostaria de consultar?"
+        # Guarda dados para próximo step
+        step_context.values["user_id"] = user_id
+        step_context.values["cards"] = cards
 
-        choices = [
-            Choice("📅 Últimos 7 dias", "7_dias"),
-            Choice("📅 Último mês", "1_mes"),
-            Choice("📅 Últimos 3 meses", "3_meses"),
-            Choice("📅 Todas as compras", "todas"),
-            Choice("💰 Por valor mínimo", "valor"),
-            Choice("🔙 Voltar", "voltar"),
+        # Se só tem um cartão, vai direto pro próximo passo
+        if len(cards) == 1:
+            return await step_context.next(cards[0]["id"])
+
+        # Se tem mais cartões, mostra opções para escolha
+        card_choices = [
+            Choice(value=str(card["id"]), 
+                  text=f"Cartão final {card['numero'][-4:]}")
+            for card in cards
         ]
 
         return await step_context.prompt(
             ChoicePrompt.__name__,
             PromptOptions(
-                prompt=MessageFactory.text(prompt_message),
-                choices=choices,
-            ),
+                prompt=MessageFactory.text("Qual cartão você quer ver o extrato?"),
+                choices=card_choices
+            )
         )
-    async def process_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        choice = step_context.result.value
 
-        if choice == "voltar":
+    async def show_extrato_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        user_id = step_context.values["user_id"]
+        
+        # Pega o ID do cartão selecionado
+        if hasattr(step_context.result, 'value'):
+            card_id = step_context.result.value
+        else:
+            card_id = step_context.result
+
+        # Busca extrato
+        extrato = self.cartao_api.get_card_statement(user_id, card_id)
+        
+        if not extrato:
+            await step_context.context.send_activity("Não há transações para este cartão.")
             return await step_context.end_dialog()
-        elif choice == "valor":
-            return await step_context.prompt(
-                TextPrompt.__name__,
-                {"prompt": MessageFactory.text("💰 Digite o valor mínimo das compras (ex: 50.00):")}
-            )
-        else:
-            await self._show_statement(step_context, choice)
-            return await step_context.end_dialog()
 
-    async def _show_statement(self, step_context: WaterfallStepContext, filter_type: str, min_value: float = None):
-
-        user_id = await self.user_id_accessor.get(step_context.context, lambda: 1)
-        cards = self.cartao_api.get_user_cards(user_id)
+        # Monta mensagem do extrato
+        mensagem = "📊 **EXTRATO DO CARTÃO**\n\n"
         
-        if not cards:
-            message = "📭 **Nenhum cartão encontrado!**\n\nVocê ainda não possui cartões cadastrados."
-            await step_context.context.send_activity(MessageFactory.text(message))
-            return
-
-        card = cards[0]
-        purchases = self.cartao_api.get_card_statement(card["id"])
-        
-        if not purchases:
-            message = "📭 **Nenhuma compra encontrada!**\n\nVocê ainda não realizou compras conosco."
-            await step_context.context.send_activity(MessageFactory.text(message))
-            return
-
-        filtered_purchases = self._apply_filters(purchases, filter_type, min_value)
-
-        if not filtered_purchases:
-            message = "❌ **Nenhuma compra encontrada com os filtros aplicados.**"
-        else:
-            message = self._format_statement(filtered_purchases, filter_type, min_value)
-
-        await step_context.context.send_activity(MessageFactory.text(message))
-
-    def _apply_filters(self, purchases: list, filter_type: str, min_value: float = None) -> list:
-        if filter_type == "todas":
-            filtered = purchases
-        elif filter_type == "7_dias":
-            cutoff_date = datetime.now() - timedelta(days=7)
-            filtered = [p for p in purchases if datetime.strptime(p['date'], '%d/%m/%Y') >= cutoff_date]
-        elif filter_type == "1_mes":
-            cutoff_date = datetime.now() - timedelta(days=30)
-            filtered = [p for p in purchases if datetime.strptime(p['date'], '%d/%m/%Y') >= cutoff_date]
-        elif filter_type == "3_meses":
-            cutoff_date = datetime.now() - timedelta(days=90)
-            filtered = [p for p in purchases if datetime.strptime(p['date'], '%d/%m/%Y') >= cutoff_date]
-        else:
-            filtered = purchases
-
-        if min_value is not None:
-            filtered = [p for p in filtered if p['total'] >= min_value]
-
-        return filtered
-
-    def _format_statement(self, purchases: list, filter_type: str, min_value: float = None) -> str:
-        total_spent = sum(purchase['total'] for purchase in purchases)
-        
-        if filter_type == "7_dias":
-            title = "📊 **Extrato - Últimos 7 dias**"
-        elif filter_type == "1_mes":
-            title = "📊 **Extrato - Último mês**"
-        elif filter_type == "3_meses":
-            title = "📊 **Extrato - Últimos 3 meses**"
-        elif min_value:
-            title = f"📊 **Extrato - Compras acima de R$ {min_value:.2f}**"
-        else:
-            title = "📊 **Extrato Completo**"
-
-        message = f"{title}\n\n"
-        message += f"💰 **Total gasto:** R$ {total_spent:.2f}\n"
-        message += f"🛍️ **Quantidade de compras:** {len(purchases)}\n\n"
-        message += "📋 **Detalhes das compras:**\n\n"
-
-        for purchase in purchases[-10:]:
-            message += (
-                f"🏷️ **Pedido #{purchase['id']}**\n"  # era order_id
-                f"📅 Data: {purchase['data']}\n"      # era date
-                f"💰 Valor: R$ {purchase['total']:.2f}\n"
-                f"💳 Forma de pagamento: {purchase['forma_pagamento']}\n"  # era payment_method
-                f"📦 Produtos: {', '.join([item['nome'] for item in purchase['itens']])}\n\n"  # era name/items
+        for transacao in extrato:
+            data = transacao.get("data", "")[:10]
+            valor = transacao.get("valor", 0)
+            descricao = transacao.get("descricao", "")
+            status = transacao.get("status", "")
+            
+            mensagem += (
+                f"📅 Data: {data}\n"
+                f"💰 Valor: R$ {valor:.2f}\n"
+                f"📝 Descrição: {descricao}\n"
+                f"✔️ Status: {status}\n"
+                f"{'─' * 30}\n"
             )
 
-        if len(purchases) > 10:
-            message += f"... e mais {len(purchases) - 10} compra(s).\n"
+        await step_context.context.send_activity(MessageFactory.text(mensagem))
 
-        return message
+        return await step_context.next(None)
+
+    async def final_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        reply = MessageFactory.text("O que você deseja fazer agora?")
+        reply.suggested_actions = SuggestedActions(
+            actions=[
+                CardAction(
+                    type=ActionTypes.im_back,
+                    title="🔄 Voltar ao Menu",
+                    value="menu"
+                ),
+                CardAction(
+                    type=ActionTypes.im_back,
+                    title="❌ Sair",
+                    value="sair"
+                )
+            ]
+        )
+        
+        await step_context.context.send_activity(reply)
+        return await step_context.end_dialog()
+
