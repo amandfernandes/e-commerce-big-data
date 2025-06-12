@@ -26,31 +26,35 @@ public class PedidoController {
     @Autowired
     private ProdutoRepository produtoRepository;
 
+    @Autowired
+    private CartaoCreditoController cartaoCreditoController;
+
     @PostMapping
     public ResponseEntity<Pedido> create(@PathVariable("id_usuario") Integer idUsuario,
                                        @RequestBody PedidoRequest request) {
-        // Valida usuário
+        // 1. Valida usuário
         Optional<Usuario> optionalUsuario = usuarioRepository.findById(idUsuario);
         if (optionalUsuario.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        // Valida cartão
+        // 2. Valida cartão
         Optional<CartaoCredito> optionalCartao = cartaoCreditoRepository.findById(request.getIdCartao());
         if (optionalCartao.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
+        // 3. Cria o pedido
         Pedido pedido = new Pedido();
         pedido.setUsuario(optionalUsuario.get());
         pedido.setCartaoCredito(optionalCartao.get());
         pedido.setDataPedido(LocalDateTime.now());
         pedido.setStatus("PENDENTE");
 
+        // 4. Processa os itens do pedido
         List<ItemPedido> itens = new ArrayList<>();
         double valorTotal = 0;
 
-        // Processa os itens do pedido
         for (ItemPedidoRequest itemRequest : request.getItens()) {
             Optional<Produto> optionalProduto = produtoRepository.findById(itemRequest.getProdutoId());
             if (optionalProduto.isEmpty()) {
@@ -73,13 +77,23 @@ public class PedidoController {
         pedido.setItens(itens);
         pedido.setValorTotal(valorTotal);
 
-        // Processa o pagamento
+        // 5. Autoriza o pagamento
         TransacaoRequest transacaoRequest = new TransacaoRequest();
         transacaoRequest.setNumero(pedido.getCartaoCredito().getNumero());
+        transacaoRequest.setDtExpiracao(pedido.getCartaoCredito().getDtExpiracao());
         transacaoRequest.setCvv(pedido.getCartaoCredito().getCvv());
         transacaoRequest.setValor(valorTotal);
+        transacaoRequest.setIdUsuario(idUsuario);
 
-        // Salva o pedido
+        ResponseEntity<TransacaoResponse> transacaoResponse = cartaoCreditoController.authorize(idUsuario, transacaoRequest);
+        
+        if (transacaoResponse.getStatusCode() != HttpStatus.OK) {
+            pedido.setStatus("REJEITADO");
+        } else {
+            pedido.setStatus("APROVADO");
+        }
+
+        // 6. Salva o pedido
         pedidoRepository.save(pedido);
         
         return new ResponseEntity<>(pedido, HttpStatus.CREATED);
