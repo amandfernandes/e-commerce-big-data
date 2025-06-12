@@ -42,6 +42,22 @@ public class ProdutoController {
         return new ResponseEntity<>(produtos, HttpStatus.OK);
     }
 
+    @GetMapping("/buscar")
+    public ResponseEntity<List<Produto>> findByNome(@RequestParam String nome) {
+        if (nome == null || nome.trim().isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+        
+        List<Produto> produtos = repository.findByNomeContaining(nome.trim())
+                                            .orElse(Collections.emptyList());
+        
+        if (produtos.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        
+        return new ResponseEntity<>(produtos, HttpStatus.OK);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         Optional<Produto> optProduto = repository.findById(id);

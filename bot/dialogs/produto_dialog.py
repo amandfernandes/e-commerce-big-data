@@ -76,24 +76,28 @@ class ProdutoDialog (ComponentDialog):
 
     async def show_card_results(self, productName, step_context: WaterfallStepContext):
         produto_api = ProductAPI()
-
         response = produto_api.search_product(productName)
+
+        if not response or len(response) == 0:
+            await step_context.context.send_activity(
+                MessageFactory.text(f"❌ Nenhum produto encontrado para '{productName}'.")
+            )
+            return
 
         for produto in response:
             card = CardFactory.hero_card(
                 HeroCard(
-                    title=produto["nome"],  # era productName
-                    text=f"Preço: R$ {produto['preco']}",  # era price
-                    subtitle=produto["descricao"],  # era productDescription
-                    images=[CardImage(url=imagem) for imagem in produto["imagens"]],  # era imageUrl
+                    title=produto["nome"],
+                    text=f"Preço: R$ {produto['preco']}",
+                    subtitle=produto["descricao"],
+                    images=[CardImage(url=imagem) for imagem in produto["imagens"]],
                     buttons=[
                         CardAction(
                             type=ActionTypes.post_back,
                             title=f"Comprar {produto['nome']}",
-                            value={"acao": "comprar", "productId": produto["id"]},                     
+                            value={"acao": "comprar", "productId": produto["id"]},
                         )
                     ],
                 )
             )
-
-            await step_context.context.send_activity(MessageFactory.attachment(card))    
+            await step_context.context.send_activity(MessageFactory.attachment(card))
