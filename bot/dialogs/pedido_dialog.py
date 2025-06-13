@@ -16,7 +16,6 @@ from botbuilder.core import MessageFactory
 from botbuilder.dialogs.prompts import PromptOptions
 
 class PedidoDialog(ComponentDialog):
-
     def __init__(self):
         super(PedidoDialog, self).__init__(PedidoDialog.__name__)
 
@@ -27,6 +26,7 @@ class PedidoDialog(ComponentDialog):
             WaterfallDialog(
                 WaterfallDialog.__name__,
                 [
+                    self.validate_card_step,  # Novo passo
                     self.choice_step,
                     self.action_step,
                     self.final_step,
@@ -36,7 +36,27 @@ class PedidoDialog(ComponentDialog):
 
         self.initial_dialog_id = WaterfallDialog.__name__
 
+    async def validate_card_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        """
+        Solicita e valida o número do cartão do usuário.
+        """
+        return await step_context.prompt(
+            TextPrompt.__name__,
+            PromptOptions(
+                prompt=MessageFactory.text("💳 Por favor, digite os últimos 4 dígitos do seu cartão:")
+            ),
+        )
+
     async def choice_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        # Validar o cartão antes de continuar
+        card_number = step_context.result
+        if not self._validate_card_number(card_number):
+            await step_context.context.send_activity(
+                MessageFactory.text("❌ Número de cartão inválido. Por favor, tente novamente.")
+            )
+            return await step_context.end_dialog()
+
+        # Continue com o diálogo original
         prompt_message = "📦 **Consulta de Pedidos**\n\nO que você gostaria de fazer?"
 
         choices = [
@@ -168,3 +188,13 @@ class PedidoDialog(ComponentDialog):
             "Cancelado": "❌",
         }
         return status_emojis.get(status, "❓")
+
+    def _validate_card_number(self, card_number: str) -> bool:
+        """
+        Valida os últimos 4 dígitos do cartão
+        """
+        return (
+            card_number is not None
+            and card_number.isdigit()
+            and len(card_number) == 4
+        )

@@ -4,6 +4,7 @@ from botbuilder.dialogs import (
     WaterfallStepContext,
     DialogTurnResult,
     ChoicePrompt,
+    TextPrompt,
     PromptOptions
 )
 from botbuilder.dialogs.choices import Choice
@@ -18,11 +19,13 @@ class ExtratoDialog(ComponentDialog):
         self.cartao_api = CartaoAPI()
         self.user_state = user_state
         
+        self.add_dialog(TextPrompt(TextPrompt.__name__))
         self.add_dialog(ChoicePrompt(ChoicePrompt.__name__))
         self.add_dialog(
             WaterfallDialog(
                 "ExtratoWaterfall",
                 [
+                    self.validate_user_step,  # Novo passo
                     self.select_card_step,
                     self.show_extrato_step,
                     self.final_step
@@ -32,39 +35,60 @@ class ExtratoDialog(ComponentDialog):
         
         self.initial_dialog_id = "ExtratoWaterfall"
 
-    async def select_card_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        # Simula um user_id fixo para teste
-        user_id = 1
-        
-        # Busca cartões do usuário
-        cards = self.cartao_api.get_user_cards(user_id)
-        
-        if not cards:
-            await step_context.context.send_activity("Você não possui cartões cadastrados.")
-            return await step_context.end_dialog()
-
-        # Guarda dados para próximo step
-        step_context.values["user_id"] = user_id
-        step_context.values["cards"] = cards
-
-        # Se só tem um cartão, vai direto pro próximo passo
-        if len(cards) == 1:
-            return await step_context.next(cards[0]["id"])
-
-        # Se tem mais cartões, mostra opções para escolha
-        card_choices = [
-            Choice(value=str(card["id"]), 
-                  text=f"Cartão final {card['numero'][-4:]}")
-            for card in cards
-        ]
-
+    async def validate_user_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        """
+        Solicita e valida o ID do usuário
+        """
         return await step_context.prompt(
-            ChoicePrompt.__name__,
+            TextPrompt.__name__,
             PromptOptions(
-                prompt=MessageFactory.text("Qual cartão você quer ver o extrato?"),
-                choices=card_choices
-            )
+                prompt=MessageFactory.text("👤 Por favor, digite seu ID de usuário:")
+            ),
         )
+
+    async def select_card_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        # Validar ID do usuário
+        try:
+            user_id = int(step_context.result)
+            # Verifica se o usuário existe
+            if not self.cartao_api.user_exists(user_id):
+                await step_context.context.send_activity("❌ Usuário não encontrado.")
+                return await step_context.end_dialog()
+            
+            step_context.values["user_id"] = user_id
+            
+            # Busca cartões do usuário
+            cards = self.cartao_api.get_user_cards(user_id)
+            
+            if not cards:
+                await step_context.context.send_activity("Você não possui cartões cadastrados.")
+                return await step_context.end_dialog()
+
+            # Guarda dados para próximo step
+            step_context.values["user_id"] = user_id
+            step_context.values["cards"] = cards
+
+            # Se só tem um cartão, vai direto pro próximo passo
+            if len(cards) == 1:
+                return await step_context.next(cards[0]["id"])
+
+            # Se tem mais cartões, mostra opções para escolha
+            card_choices = [
+                Choice(value=str(card["id"]), 
+                      text=f"Cartão final {card['numero'][-4:]}")
+                for card in cards
+            ]
+
+            return await step_context.prompt(
+                ChoicePrompt.__name__,
+                PromptOptions(
+                    prompt=MessageFactory.text("Qual cartão você quer ver o extrato?"),
+                    choices=card_choices
+                )
+            )
+        except ValueError:
+            await step_context.context.send_activity("❌ ID de usuário inválido. Digite apenas números.")
+            return await step_context.end_dialog()
 
     async def show_extrato_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         user_id = step_context.values["user_id"]
