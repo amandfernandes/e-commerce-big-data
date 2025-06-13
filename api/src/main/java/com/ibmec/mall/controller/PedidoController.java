@@ -120,4 +120,63 @@ public class PedidoController {
 
         return new ResponseEntity<>(optionalPedido.get(), HttpStatus.OK);
     }
+
+    @GetMapping("/detalhes")
+    public ResponseEntity<Map<String, Object>> listDetailedOrders(@PathVariable("id_usuario") Integer idUsuario) {
+        // Valida usuário
+        Optional<Usuario> optionalUsuario = usuarioRepository.findById(idUsuario);
+        if (optionalUsuario.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        List<Pedido> pedidos = pedidoRepository.findByUsuario(optionalUsuario.get());
+        Map<String, Object> response = new HashMap<>();
+        
+        // Estatísticas gerais
+        double valorTotal = pedidos.stream()
+            .mapToDouble(Pedido::getValorTotal)
+            .sum();
+            
+        long totalPedidos = pedidos.size();
+        long pedidosAprovados = pedidos.stream()
+            .filter(p -> "APROVADO".equals(p.getStatus()))
+            .count();
+
+        // Monta resposta detalhada
+        Map<String, Object> estatisticas = new HashMap<>();
+        estatisticas.put("totalPedidos", totalPedidos);
+        estatisticas.put("pedidosAprovados", pedidosAprovados);
+        estatisticas.put("valorTotalGasto", valorTotal);
+
+        List<Map<String, Object>> pedidosDetalhados = new ArrayList<>();
+        
+        for (Pedido pedido : pedidos) {
+            Map<String, Object> pedidoDetail = new HashMap<>();
+            pedidoDetail.put("id", pedido.getId());
+            pedidoDetail.put("data", pedido.getDataPedido());
+            pedidoDetail.put("status", pedido.getStatus());
+            pedidoDetail.put("valorTotal", pedido.getValorTotal());
+            
+            
+            // Lista detalhada de itens
+            List<Map<String, Object>> itensDetalhados = new ArrayList<>();
+            for (ItemPedido item : pedido.getItens()) {
+                Map<String, Object> itemDetail = new HashMap<>();
+                itemDetail.put("produto", item.getNomeProduto());
+                itemDetail.put("quantidade", item.getQuantidade());
+                itemDetail.put("precoUnitario", item.getPrecoUnitario());
+                itemDetail.put("subtotal", item.getSubtotal());
+                itensDetalhados.add(itemDetail);
+            }
+            pedidoDetail.put("itens", itensDetalhados);
+            
+            pedidosDetalhados.add(pedidoDetail);
+        }
+
+        response.put("usuario", optionalUsuario.get().getNome());
+        response.put("estatisticas", estatisticas);
+        response.put("pedidos", pedidosDetalhados);
+
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
 }
