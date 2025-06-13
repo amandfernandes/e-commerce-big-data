@@ -18,10 +18,20 @@ class ComprasAPI:
             
             if response.status_code in [200, 201]:
                 return response.json()
-            return {"status": "ERRO", "message": "Erro ao criar pedido"}
+            else:
+                # --- MELHORIA APLICADA AQUI ---
+                # Loga o erro real e o retorna para o bot.
+                print(f"Erro na API ao criar pedido: {response.status_code} - {response.text}")
+                try:
+                    # Tenta retornar o JSON de erro da API, se houver
+                    error_details = response.json()
+                    return {"status": "ERRO", "message": error_details.get("message", response.text)}
+                except ValueError:
+                    # Se a resposta de erro não for JSON
+                    return {"status": "ERRO", "message": response.text}
                 
         except Exception as e:
-            print(f"Erro ao criar pedido: {str(e)}")
+            print(f"Erro de conexão ao criar pedido: {str(e)}")
             return {"status": "ERRO", "message": str(e)}
 
     def get_user_cards(self, user_id) -> list:
