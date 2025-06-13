@@ -39,3 +39,26 @@ class ComprasAPI:
         except Exception as e:
             print(f"Erro ao adicionar ao carrinho: {e}")
             return None
+
+    def get_user_orders(self, user_id):
+        """Obtém os pedidos de um usuário"""
+        try:
+            response = requests.get(f"{self.base_url}/pedidos/usuario/{user_id}")
+            if response.status_code == 200:
+                return response.json()
+            return []
+        except Exception as e:
+            print(f"Erro ao obter pedidos do usuário: {e}")
+            return []
+
+    def get_order_by_id(self, order_id):
+        """Obtém um pedido específico pelo ID"""
+        try:
+            response = requests.get(f"{self.base_url}/pedidos/{order_id}")
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except Exception as e:
+            print(f"Erro ao obter pedido por ID: {e}")
+            return None
+
