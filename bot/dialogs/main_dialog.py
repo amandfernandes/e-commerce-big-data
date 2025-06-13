@@ -31,7 +31,11 @@ class MainDialog(ComponentDialog):
         self.add_dialog(ChoicePrompt(ChoicePrompt.__name__))
 
         # Adicionando os diálogos filhos
-        self.add_dialog(PedidoDialog())
+        # ======================================================================
+        # AJUSTE REALIZADO AQUI
+        # Passando o user_state para o PedidoDialog, assim como para os outros.
+        self.add_dialog(PedidoDialog(user_state))
+        # ======================================================================
         self.add_dialog(ProdutoDialog(user_state))
         self.add_dialog(ExtratoDialog(user_state))
         self.add_dialog(CompraDialog(user_state))
@@ -95,7 +99,6 @@ class MainDialog(ComponentDialog):
 
     # PASSO 3: Lida com a escolha do menu principal
     async def act_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        # (Esta função permanece a mesma da versão anterior)
         if isinstance(step_context.result, dict) and "intent" in step_context.result:
             choice = step_context.result["intent"]
         else:
@@ -117,7 +120,6 @@ class MainDialog(ComponentDialog):
 
     # PASSO 4: Pergunta se o usuário quer continuar
     async def final_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        # (Esta função permanece a mesma da versão anterior)
         prompt_message = "✅ Posso ajudar com mais alguma coisa?"
         choices = [
             Choice(value="menu", action=CardAction(type=ActionTypes.im_back, title="🔄 Voltar ao Menu", value="menu")),
@@ -127,7 +129,6 @@ class MainDialog(ComponentDialog):
 
     # PASSO 5: Processa a resposta sobre continuar
     async def process_continue_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        # (Esta função permanece a mesma da versão anterior)
         choice = step_context.result.value
         if choice == "menu":
             return await step_context.replace_dialog(self.id, "Olá de novo! Como posso te ajudar?")
@@ -137,7 +138,6 @@ class MainDialog(ComponentDialog):
             return await step_context.end_dialog()
         return await step_context.end_dialog()
 
-    # (As funções auxiliares _show_main_menu, _get_intent, e run permanecem as mesmas)
     async def _show_main_menu(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         prompt_message = "🛍️ **O que você gostaria de fazer?**\n\nEscolha uma das opções abaixo:"
         choices = [
@@ -149,7 +149,6 @@ class MainDialog(ComponentDialog):
         return await step_context.prompt(ChoicePrompt.__name__, PromptOptions(prompt=MessageFactory.text(prompt_message), choices=choices))
     
     def _get_intent(self, text: str) -> str:
-        # (Esta função não foi alterada)
         if any(word in text for word in ["pedido", "consultar pedidos", "pedidos", "status", "entrega", "rastreamento"]): return "pedidos"
         elif any(word in text for word in ["produto", "buscar produtos", "produtos", "buscar", "procurar", "categoria", "preço"]): return "produtos"
         elif any(word in text for word in ["extrato", "ver extrato", "histórico", "compras", "gastos", "transações"]): return "extrato"
@@ -158,7 +157,6 @@ class MainDialog(ComponentDialog):
         return "unknown"
     
     async def run(self, turn_context: TurnContext, dialog_state_accessor):
-        # (Esta função não foi alterada)
         dialog_set = DialogSet(dialog_state_accessor)
         dialog_set.add(self)
         dialog_context = await dialog_set.create_context(turn_context)

@@ -10,28 +10,38 @@ class ComprasAPI:
         """
         Cria um novo pedido
         """
+        url = f"{self.base_url}/pedidos/{user_id}"
+        print(f"\n--- INICIANDO POST PARA A API ---")
+        print(f"URL: {url}")
+        print(f"DADOS (JSON): {order_data}")
+
         try:
-            response = requests.post(
-                f"{self.base_url}/pedidos/{user_id}",
-                json=order_data
-            )
+            response = requests.post(url, json=order_data)
             
-            if response.status_code in [200, 201]:
-                return response.json()
-            else:
-                # --- MELHORIA APLICADA AQUI ---
-                # Loga o erro real e o retorna para o bot.
-                print(f"Erro na API ao criar pedido: {response.status_code} - {response.text}")
-                try:
-                    # Tenta retornar o JSON de erro da API, se houver
-                    error_details = response.json()
-                    return {"status": "ERRO", "message": error_details.get("message", response.text)}
-                except ValueError:
-                    # Se a resposta de erro não for JSON
-                    return {"status": "ERRO", "message": response.text}
+            print(f"STATUS DA RESPOSTA DA API: {response.status_code}")
+            # Usamos repr() para ver caracteres especiais como quebras de linha (\n)
+            print(f"CONTEÚDO DA RESPOSTA (RAW TEXT): >>>{repr(response.text)}<<<")
+            print(f"--- FIM DA RESPOSTA DA API ---\n")
+
+            # Se o status code não for de sucesso, já sabemos que é um erro.
+            if response.status_code not in [200, 201]:
+                return {"status": "ERRO", "message": f"API retornou status {response.status_code}: {response.text}"}
+
+            # Se o status for de sucesso, mas a resposta estiver vazia...
+            if not response.text:
+                print("AVISO: Resposta de sucesso da API está vazia. Verifique o método no Spring Boot.")
+                # Retorna um JSON de sucesso genérico para o bot não quebrar.
+                return {"id": "processado_sem_retorno_da_api", "status": "SUCESSO"}
+
+            # Se tiver conteúdo, tenta fazer o parse do JSON.
+            return response.json()
                 
+        except ValueError:
+            # Este erro acontece se response.text não for um JSON válido
+            print(f"ERRO DE JSON: A resposta da API (status {response.status_code}) não é um JSON válido.")
+            return {"status": "ERRO", "message": "A resposta da API não estava no formato JSON esperado."}
         except Exception as e:
-            print(f"Erro de conexão ao criar pedido: {str(e)}")
+            print(f"ERRO DE CONEXÃO ao criar pedido: {str(e)}")
             return {"status": "ERRO", "message": str(e)}
 
     def get_user_cards(self, user_id) -> list:

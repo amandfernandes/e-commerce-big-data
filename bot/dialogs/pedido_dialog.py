@@ -1,72 +1,65 @@
-# dialogs/order_dialog.py
-# Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License.
+# dialogs/pedido_dialog.py (corrigido e modernizado)
 
 from botbuilder.dialogs import (
     ComponentDialog,
     WaterfallDialog,
     WaterfallStepContext,
     DialogTurnResult,
-    TextPrompt,
-    ChoicePrompt,
 )
-from botbuilder.dialogs.choices import Choice
-from botbuilder.core import MessageFactory
+from botbuilder.core import MessageFactory, UserState
 
-from botbuilder.dialogs.prompts import PromptOptions
 from api.compra_api import ComprasAPI
 
 class PedidoDialog(ComponentDialog):
-    def __init__(self):
+    # O __init__ agora recebe o user_state, assim como os outros diálogos
+    def __init__(self, user_state: UserState):
         super(PedidoDialog, self).__init__(PedidoDialog.__name__)
 
-        self.add_dialog(TextPrompt(TextPrompt.__name__))
-        self.add_dialog(ChoicePrompt(ChoicePrompt.__name__))
+        self.user_state = user_state
+        self.user_id_accessor = self.user_state.create_property("UserId")
 
         self.add_dialog(
             WaterfallDialog(
-                WaterfallDialog.__name__,
+                # Não precisamos mais do TextPrompt, pois não vamos pedir o ID
+                "PedidoWaterfall",
                 [
-                    self.request_user_id_step,
+                    # Removemos o passo que pedia o ID
                     self._list_orders
                 ],
             )
         )
 
-        self.initial_dialog_id = WaterfallDialog.__name__
+        self.initial_dialog_id = "PedidoWaterfall"
 
-    async def request_user_id_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        """
-        Primeiro passo: solicita o ID do usuário
-        """
-        return await step_context.prompt(
-            TextPrompt.__name__,
-            PromptOptions(
-                prompt=MessageFactory.text("👤 Por favor, digite seu ID de usuário:")
-            ),
-        )
 
     async def _list_orders(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         try:
-            user_id = int(step_context.result)
-            compra_api = ComprasAPI()
+            # Pegamos o ID do usuário diretamente do UserState, sem perguntar
+            user_id = await self.user_id_accessor.get(step_context.context)
 
+            if not user_id:
+                await step_context.context.send_activity("Não consegui identificar seu usuário para buscar os pedidos. Por favor, inicie a conversa novamente.")
+                return await step_context.end_dialog()
+
+            compra_api = ComprasAPI()
             response = compra_api.get_user_orders(user_id)
-            orders = response.get("data", []) if isinstance(response, dict) else []
+
+            # --- CORREÇÃO PRINCIPAL APLICADA AQUI ---
+            # Navegamos pela estrutura aninhada para encontrar a lista de "pedidos"
+            orders = response.get("data", {}).get("pedidos", [])
 
             if not orders:
                 message = "📭 **Nenhum pedido encontrado!**\n\nVocê ainda não fez nenhum pedido conosco."
             else:
                 message = "📦 **Seus Últimos Pedidos:**\n\n"
                 
-                # Pega os últimos 5 pedidos de forma segura
                 last_orders = orders if len(orders) <= 5 else orders[-5:]
                 
                 for order in last_orders:
-                    if isinstance(order, dict):  # Verifica se order é um dicionário
+                    if isinstance(order, dict):
                         order_id = order.get('id', 'N/A')
                         order_date = order.get('data', 'Data não disponível')
-                        order_total = order.get('total', 0)
+                        order_total = order.get('valorTotal', 0) # Corrigido de 'total' para 'valorTotal'
                         order_items = order.get('itens', [])
                         
                         message += (
@@ -77,10 +70,7 @@ class PedidoDialog(ComponentDialog):
                         )
 
             await step_context.context.send_activity(MessageFactory.text(message))
-        except ValueError:
-            await step_context.context.send_activity(
-                MessageFactory.text("❌ ID de usuário inválido. Por favor, digite apenas números.")
-            )
+        
         except Exception as e:
             await step_context.context.send_activity(
                 MessageFactory.text(f"❌ Ocorreu um erro ao buscar seus pedidos. Tente novamente mais tarde.")
