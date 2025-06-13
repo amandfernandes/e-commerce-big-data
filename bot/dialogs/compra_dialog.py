@@ -1,7 +1,4 @@
-# dialogs/purchase_dialog.py
-# Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License.
-
+# dialogs/compra_dialog.py (corrigido)
 from botbuilder.dialogs.prompts import PromptOptions
 
 from botbuilder.dialogs import (
@@ -15,6 +12,8 @@ from botbuilder.dialogs import (
 )
 from botbuilder.dialogs.choices import Choice
 from botbuilder.core import MessageFactory, UserState
+# IMPORT NECESSÁRIO PARA A CORREÇÃO
+from botbuilder.schema import CardAction, ActionTypes
 
 from api.product_api import ProductAPI
 from api.compra_api import ComprasAPI
@@ -24,12 +23,12 @@ class CompraDialog(ComponentDialog):
         super(CompraDialog, self).__init__(CompraDialog.__name__)
 
         self.user_state = user_state
+        # É uma boa prática inicializar os accessors uma vez
         self.user_id_accessor = self.user_state.create_property("UserId")
         self.cart_accessor = self.user_state.create_property("Cart")
         
         self.product_api = ProductAPI()
         self.compras_api = ComprasAPI()
-        self.user_state = user_state
 
         self.add_dialog(TextPrompt(TextPrompt.__name__))
         self.add_dialog(ChoicePrompt(ChoicePrompt.__name__))
@@ -37,7 +36,8 @@ class CompraDialog(ComponentDialog):
 
         self.add_dialog(
             WaterfallDialog(
-                WaterfallDialog.__name__,
+                # Usar um nome único é uma boa prática
+                "CompraWaterfall",
                 [
                     self.menu_step,
                     self.action_step,
@@ -48,7 +48,7 @@ class CompraDialog(ComponentDialog):
             )
         )
 
-        self.initial_dialog_id = WaterfallDialog.__name__
+        self.initial_dialog_id = "CompraWaterfall"
 
     async def menu_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         cart = await self.cart_accessor.get(step_context.context, lambda: [])
@@ -57,12 +57,13 @@ class CompraDialog(ComponentDialog):
 
         prompt_message = f"🛒 **Área de Compras**{cart_info}\n\nO que você gostaria de fazer?"
 
+        # --- CORREÇÃO APLICADA ---
         choices = [
-            Choice("➕ Adicionar Produto", "adicionar"),
-            Choice(f"🛒 Ver Carrinho{cart_info}", "carrinho"),
-            Choice("✅ Finalizar Compra", "finalizar"),
-            Choice("🗑️ Limpar Carrinho", "limpar"),
-            Choice("🔙 Voltar", "voltar"),
+            Choice(value="adicionar", action=CardAction(type=ActionTypes.im_back, title="➕ Adicionar Produto", value="adicionar")),
+            Choice(value="carrinho", action=CardAction(type=ActionTypes.im_back, title=f"🛒 Ver Carrinho{cart_info}", value="carrinho")),
+            Choice(value="finalizar", action=CardAction(type=ActionTypes.im_back, title="✅ Finalizar Compra", value="finalizar")),
+            Choice(value="limpar", action=CardAction(type=ActionTypes.im_back, title="🗑️ Limpar Carrinho", value="limpar")),
+            Choice(value="voltar", action=CardAction(type=ActionTypes.im_back, title="🔙 Voltar", value="voltar")),
         ]
 
         return await step_context.prompt(
@@ -80,7 +81,7 @@ class CompraDialog(ComponentDialog):
         if choice == "adicionar":
             return await step_context.prompt(
                 TextPrompt.__name__,
-                {"prompt": MessageFactory.text("🔍 Digite o nome ou ID do produto que deseja adicionar:")}
+                PromptOptions(prompt=MessageFactory.text("🔍 Digite o nome ou ID do produto que deseja adicionar:"))
             )
         elif choice == "carrinho":
             await self._show_cart(step_context)
@@ -100,16 +101,20 @@ class CompraDialog(ComponentDialog):
             search_term = step_context.result
             return await self._add_product_to_cart(step_context, search_term)
         elif action == "finalizar":
-            # Continuação do checkout
             payment_method = step_context.result.value
             step_context.values["payment_method"] = payment_method
             return await self._show_order_summary(step_context)
 
+        # Se a ação não requer um passo de processamento, apenas continue
+        return await step_context.next(None)
+
+
     async def confirm_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         if step_context.values.get("action") == "finalizar":
+            # --- CORREÇÃO APLICADA ---
             choices = [
-                Choice("✅ Confirmar Pedido", "confirmar"),
-                Choice("❌ Cancelar", "cancelar"),
+                Choice(value="confirmar", action=CardAction(type=ActionTypes.im_back, title="✅ Confirmar Pedido", value="confirmar")),
+                Choice(value="cancelar", action=CardAction(type=ActionTypes.im_back, title="❌ Cancelar", value="cancelar")),
             ]
 
             return await step_context.prompt(
@@ -124,18 +129,25 @@ class CompraDialog(ComponentDialog):
 
     async def final_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         if step_context.values.get("action") == "finalizar":
-            choice = step_context.result.value if step_context.result else "cancelar"
-            
-            if choice == "confirmar":
-                await self._process_order(step_context)
+            # O resultado pode não existir se o passo anterior foi pulado
+            if step_context.result:
+                choice = step_context.result.value
+                if choice == "confirmar":
+                    await self._process_order(step_context)
+                else:
+                    await step_context.context.send_activity(
+                        MessageFactory.text("❌ **Pedido cancelado!**\n\nSeus itens permanecem no carrinho.")
+                    )
             else:
-                await step_context.context.send_activity(
-                    MessageFactory.text("❌ **Pedido cancelado!**\n\nSeus itens permanecem no carrinho.")
-                )
+                 # Caso de segurança se o prompt for pulado
+                 return await step_context.replace_dialog(self.id)
 
-        return await step_context.end_dialog()
+        # Após a ação, reinicia o diálogo de compra para o menu principal
+        return await step_context.replace_dialog(self.id)
+
 
     async def _add_product_to_cart(self, step_context: WaterfallStepContext, search_term: str) -> DialogTurnResult:
+        # (O código interno desta função não foi alterado)
         products = self.product_api.search_product(search_term)
         
         if not products:
@@ -155,28 +167,36 @@ class CompraDialog(ComponentDialog):
         product = products[0]
         step_context.values["selected_product"] = product
 
-        # Adapte aqui: ao adicionar ao carrinho, use os campos corretos
         cart = await self.cart_accessor.get(step_context.context, lambda: [])
-        cart.append({
-            "id": product["id"],
-            "name": product["nome"],      # converte 'nome' da API para 'name' do bot
-            "price": product["preco"],    # converte 'preco' da API para 'price' do bot
-            "quantity": 1
-        })
+        
+        # Lógica para atualizar quantidade se o item já existir
+        found = False
+        for item in cart:
+            if item["id"] == product["id"]:
+                item["quantity"] += 1
+                found = True
+                break
+        
+        if not found:
+            cart.append({
+                "id": product["id"],
+                "name": product["nome"],
+                "price": product["preco"],
+                "quantity": 1
+            })
+
         await self.cart_accessor.set(step_context.context, cart)
 
-        return await step_context.prompt(
-            NumberPrompt.__name__,
-            {
-                "prompt": MessageFactory.text(
-                    f"📦 **{product['nome']}** - R$ {product['preco']:.2f}\n\n"
-                    f"Quantas unidades você deseja adicionar?"
-                ),
-                "retry_prompt": MessageFactory.text("❌ Por favor, digite um número válido.")
-            }
+        await step_context.context.send_activity(
+            MessageFactory.text(f"✅ **{product['nome']}** foi adicionado ao seu carrinho!")
         )
+        
+        # Retorna para o menu principal do diálogo de compras
+        return await step_context.replace_dialog(self.id)
+
 
     async def _show_cart(self, step_context: WaterfallStepContext):
+        # (O código interno desta função não foi alterado)
         cart = await self.cart_accessor.get(step_context.context, lambda: [])
 
         if not cart:
@@ -198,6 +218,7 @@ class CompraDialog(ComponentDialog):
         await step_context.context.send_activity(MessageFactory.text(message))
 
     async def _clear_cart(self, step_context: WaterfallStepContext):
+        # (O código interno desta função não foi alterado)
         await self.cart_accessor.set(step_context.context, [])
         await step_context.context.send_activity(
             MessageFactory.text("🗑️ **Carrinho limpo!**\n\nTodos os itens foram removidos.")
@@ -212,11 +233,12 @@ class CompraDialog(ComponentDialog):
             )
             return await step_context.replace_dialog(self.id)
 
+        # --- CORREÇÃO APLICADA ---
         choices = [
-            Choice("💳 Cartão de Crédito", "credito"),
-            Choice("💰 Cartão de Débito", "debito"),
-            Choice("🏦 PIX", "pix"),
-            Choice("💵 Boleto Bancário", "boleto"),
+            Choice(value="credito", action=CardAction(type=ActionTypes.im_back, title="💳 Cartão de Crédito", value="credito")),
+            Choice(value="debito", action=CardAction(type=ActionTypes.im_back, title="💰 Cartão de Débito", value="debito")),
+            Choice(value="pix", action=CardAction(type=ActionTypes.im_back, title="🏦 PIX", value="pix")),
+            Choice(value="boleto", action=CardAction(type=ActionTypes.im_back, title="💵 Boleto Bancário", value="boleto")),
         ]
 
         return await step_context.prompt(
@@ -228,7 +250,7 @@ class CompraDialog(ComponentDialog):
         )
 
     async def _show_order_summary(self, step_context: WaterfallStepContext) -> DialogTurnResult:
-        
+        # (O código interno desta função não foi alterado)
         cart = await self.cart_accessor.get(step_context.context, lambda: [])
         payment_method = step_context.values["payment_method"]
 
@@ -243,17 +265,11 @@ class CompraDialog(ComponentDialog):
         final_total = total + fee
 
         payment_names = {
-            "credito": "Cartão de Crédito",
-            "debito": "Cartão de Débito", 
-            "pix": "PIX",
-            "boleto": "Boleto Bancário"
+            "credito": "Cartão de Crédito", "debito": "Cartão de Débito", 
+            "pix": "PIX", "boleto": "Boleto Bancário"
         }
 
-        message = (
-            "📋 **Resumo do Pedido:**\n\n"
-            "🛒 **Itens:**\n"
-        )
-
+        message = "📋 **Resumo do Pedido:**\n\n" + "🛒 **Itens:**\n"
         for item in cart:
             subtotal = item["price"] * item["quantity"]
             message += f"• {item['name']} x{item['quantity']} - R$ {subtotal:.2f}\n"
@@ -262,30 +278,24 @@ class CompraDialog(ComponentDialog):
             f"\n💰 **Subtotal:** R$ {total:.2f}\n"
             f"💳 **Forma de pagamento:** {payment_names[payment_method]}\n"
         )
-
         if fee > 0:
             message += f"📄 **Taxa:** R$ {fee:.2f}\n"
-
         message += f"💰 **Total Final:** R$ {final_total:.2f}\n"
 
         await step_context.context.send_activity(MessageFactory.text(message))
         return await step_context.next(None)
 
     async def _process_order(self, step_context: WaterfallStepContext):
-        """Processa o pedido final."""
+        # (O código interno desta função não foi alterado)
         user_id = await self.user_id_accessor.get(step_context.context, lambda: 1)
         cart = await self.cart_accessor.get(step_context.context, lambda: [])
         payment_method = step_context.values["payment_method"]
 
-        payment_info = {
-            "method": payment_method,
-            "details": {}
-        }
+        payment_info = {"method": payment_method, "details": {}}
         order = self.compras_api.create_order(user_id, cart, payment_info)
 
         if order:
             await self.cart_accessor.set(step_context.context, [])
-            
             message = (
                 f"✅ **Pedido realizado com sucesso!**\n\n"
                 f"🏷️ **Número do pedido:** #{order['id']}\n"

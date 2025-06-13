@@ -39,19 +39,19 @@ class ComprasAPI:
             print(f"Erro ao buscar cartões: {str(e)}")
             return []
 
-    def get_user_orders(self) -> dict:
+    def get_user_orders(self, user_id) -> dict:
         """
         Busca os pedidos do usuário
         """
         try:
-            response = requests.get(f"{self.base_url}/pedidos/1/detalhes")
+            response = requests.get(f"{self.base_url}/pedidos/{user_id}/detalhes")
             
             if response.status_code == 200:
                 pedidos = response.json()
                 return {"data": pedidos}
                 
             print(f"Erro ao buscar pedidos: Status {response.status_code}")
-            print("DEBUG URL:", f"{self.base_url}/pedidos/1")
+            print("DEBUG URL:", f"{self.base_url}/pedidos/{user_id}")
             return {"data": []}
                 
         except Exception as e:
