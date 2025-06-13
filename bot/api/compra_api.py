@@ -4,38 +4,56 @@ from config import DefaultConfig
 class ComprasAPI:
     def __init__(self):
         self.config = DefaultConfig()
-        self.base_url = f"{self.config.URL_PREFIX}"
+        self.base_url = f"{self.config.URL_PREFIX}"  # URL da API Spring Boot
 
-    def create_order(self, user_id, cart_items, payment_info):
-        """Cria um novo pedido"""
+    def create_order(self, user_id, order_data: dict) -> dict:
+        """
+        Cria um novo pedido
+        """
         try:
-            order_data = {
-                "user_id": user_id,
-                "items": cart_items,
-                "payment_method": payment_info["method"],
-                "payment_details": payment_info.get("details", {}),
-                "total": sum(item["price"] * item["quantity"] for item in cart_items)
-            }
+            response = requests.post(
+                f"{self.base_url}/pedidos/{user_id}",
+                json=order_data
+            )
             
-            response = requests.post(f"{self.base_url}/pedidos", json=order_data)
-            if response.status_code == 201:
+            if response.status_code in [200, 201]:
                 return response.json()
-            return None
+            return {"status": "ERRO", "message": "Erro ao criar pedido"}
+                
         except Exception as e:
-            print(f"Erro ao criar pedido: {e}")
-            return None
+            print(f"Erro ao criar pedido: {str(e)}")
+            return {"status": "ERRO", "message": str(e)}
 
-    def add_to_cart(self, user_id, product_id, quantity):
+    def get_user_cards(self, user_id) -> list:
+        """
+        Busca os cartões do usuário
+        """
         try:
-            cart_data = {
-                "product_id": product_id,
-                "quantity": quantity
-            }
-            
-            response = requests.post(f"{self.base_url}/carrinho/{user_id}", json=cart_data)
+            response = requests.get(f"{self.base_url}/cartoes/{user_id}")
             if response.status_code == 200:
                 return response.json()
-            return None
+            print(f"Erro ao buscar cartões: Status {response.status_code}")
+            print("DEBUG URL:", f"{self.base_url}/cartoes/{user_id}")
+            return []
         except Exception as e:
-            print(f"Erro ao adicionar ao carrinho: {e}")
-            return None
+            print(f"Erro ao buscar cartões: {str(e)}")
+            return []
+
+    def get_user_orders(self) -> dict:
+        """
+        Busca os pedidos do usuário
+        """
+        try:
+            response = requests.get(f"{self.base_url}/pedidos/1/detalhes")
+            
+            if response.status_code == 200:
+                pedidos = response.json()
+                return {"data": pedidos}
+                
+            print(f"Erro ao buscar pedidos: Status {response.status_code}")
+            print("DEBUG URL:", f"{self.base_url}/pedidos/1")
+            return {"data": []}
+                
+        except Exception as e:
+            print(f"Erro ao buscar pedidos: {str(e)}")
+            return {"data": []}
