@@ -18,20 +18,17 @@ from .produto_dialog import ProdutoDialog
 from .extrato_dialog import ExtratoDialog
 from .compra_dialog import CompraDialog
 
-from api.compra_api import ComprasAPI # Importar a API de compras
-
 class MainDialog(ComponentDialog):
 
     def __init__(self, user_state: UserState):
         super(MainDialog, self).__init__(MainDialog.__name__)
 
         self.user_state = user_state
-        self.ecommerce_api = ComprasAPI() # Instanciar a API de compras
 
         self.add_dialog(TextPrompt(TextPrompt.__name__))
         self.add_dialog(ChoicePrompt(ChoicePrompt.__name__))
 
-        self.add_dialog(PedidoDialog(self.ecommerce_api)) # Passar a instância da API
+        self.add_dialog(PedidoDialog())
         self.add_dialog(ProdutoDialog(user_state))
         self.add_dialog(ExtratoDialog(user_state))
         self.add_dialog(CompraDialog(user_state))
@@ -156,4 +153,3 @@ class MainDialog(ComponentDialog):
             return await dialog_context.begin_dialog(self.id)
         
         return results
-
