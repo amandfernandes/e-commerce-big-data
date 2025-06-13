@@ -35,7 +35,6 @@ O bot utiliza os seguintes endpoints para se comunicar com o backend:
 * `POST /usuario`: Criar um novo usuário com cartão de crédito.
 * `GET /produtos`: Listar todos os produtos disponíveis.
 * `POST /pedido`: Criar um novo pedido para um usuário.
-* `GET /relatorio-vendas`: Acessar relatórios de vendas (para perfis de administrador).
 * E endpoints para gestão de produtos (`POST`, `PUT`, `DELETE /produto/{id}`).
 
 ---
@@ -46,9 +45,8 @@ Utilizando a API do IBMEC-MALL, nosso bot oferece as seguintes funcionalidades:
 
 * **Busca de Produtos:** Permite que os usuários listem os produtos do catálogo.
 * **Realização de Pedidos:** Guia o usuário no processo de criação de um pedido.
-* **Cadastro de Usuário:** Facilita o cadastro de novos clientes diretamente pela interface do bot.
-* **Consultas Administrativas:** Permite que administradores solicitem relatórios de vendas.
-
+* **Ver exrato:** Permite que o usuario vizulize o extrato de de suas compras
+* **Realizar compra:** Permite que Realizar compra de produtos.
 ---
 
 ## 🚀 Instalação e Execução do Bot
@@ -65,8 +63,8 @@ Para executar o bot em um ambiente de desenvolvimento, siga os passos abaixo.
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [https://github.com/seu-usuario/seu-repositorio.git](https://github.com/seu-usuario/seu-repositorio.git)
-    cd seu-repositorio
+    git clone https://github.com/amandfernandes/e-commerce-big-data.git
+    cd e-commerce-big-data
     ```
 
 2.  **Crie e ative um ambiente virtual:**
@@ -89,24 +87,18 @@ Para executar o bot em um ambiente de desenvolvimento, siga os passos abaixo.
     * Renomeie o arquivo `.env.example` para `.env`.
     * Adicione as chaves necessárias, como o token do bot e a URL do API Gateway do Azure.
 
-    ```ini
-    # Exemplo de arquivo .env
-    BOT_TOKEN="SUA_CHAVE_DE_API_DO_BOT_AQUI"
-    ECOMMERCE_API_ENDPOINT="URL_DO_SEU_API_GATEWAY_NO_AZURE"
-    ```
 
 5.  **Execute o bot:**
-    ```bash
+  ```bash
+    cd bot
+  ```
+   
+   ```bash
     python main.py
-    ```
+   ```
 
 ---
 
 ## 🤖 Como Usar
 
-Após iniciar o bot, interaja com ele através da sua plataforma de mensagens (Telegram, Discord, etc.). Um comando como `/start` ou `/ajuda` mostrará as opções disponíveis.
-
-**Exemplos de interação:**
-* `ver produtos`
-* `quero fazer um pedido`
-* `me cadastrar`
+Após iniciar o bot, interaja com ele através do chat onde o usuario pode vizualizar as opções disponíveis sendo elas "FAZER PEDIDOS", "BUSCAR PRODUTOS", "MEU EXTRATO","FAZER COMPRA".
